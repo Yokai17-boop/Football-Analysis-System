@@ -73,25 +73,21 @@ class Tracker:
             tracks['referees'].append({})
             tracks['ball'].append({})
 
-            for frame_detection in detection_with_tracks:
-                bbox = frame_detection[0].tolist()
-                cls_id = frame_detection[3]
-                track_id = frame_detection[4]
+            if detection_with_tracks.tracker_id is not None:
+                for bbox, cls_id, track_id in zip(detection_with_tracks.xyxy, detection_with_tracks.class_id, detection_with_tracks.tracker_id):
+                    bbox_list = bbox.tolist()
+                    if cls_id == cls_name_inv.get('player'):
+                        tracks['players'][frame_num][track_id] = {"bbox": bbox_list}
 
-                if cls_id == cls_name_inv['player']:
-                    tracks['players'][frame_num][track_id] = {"bbox":bbox}
+                    if cls_id == cls_name_inv.get('referee'):
+                        tracks['referees'][frame_num][track_id] = {"bbox": bbox_list}
 
-                if cls_id == cls_name_inv['referee']:
-                    tracks['referees'][frame_num][track_id] = {"bbox":bbox}
-
-            for frame_detection in detection_supervision:
-                bbox = frame_detection[0].tolist()
-                cls_id = frame_detection[3]
-
-                if cls_id == cls_name_inv['ball']:
-                    tracks['ball'][frame_num][1] = {"bbox":bbox}
+            for bbox, cls_id in zip(detection_supervision.xyxy, detection_supervision.class_id):
+                if cls_id == cls_name_inv.get('ball'):
+                    tracks['ball'][frame_num][1] = {"bbox": bbox.tolist()}
 
         if stub_path is not None:
+            os.makedirs(os.path.dirname(stub_path), exist_ok=True)
             with open(stub_path, "wb") as f:
                 pickle.dump(tracks, f)
 
@@ -224,7 +220,7 @@ class Tracker:
         return output_video_frames
 
 
-    def add_position_to_tracks(sekf,tracks):
+    def add_position_to_tracks(self, tracks):
         for object, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
                 for track_id, track_info in track.items():

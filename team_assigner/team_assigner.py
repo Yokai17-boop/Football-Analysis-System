@@ -7,6 +7,8 @@ class TeamAssigner:
 
 
     def get_clustering_model(self, image):
+        if image.size == 0:
+            return None
         # Reshape the image into 2d array
         image_2d = image.reshape(-1,3)
 
@@ -19,11 +21,17 @@ class TeamAssigner:
     
     def get_player_color(self, frame, bbox):
         image = frame[int(bbox[1]):int(bbox[3]), int(bbox[0]):int(bbox[2])]
+        if image.size == 0:
+            return np.array([0, 0, 0])
 
-        top_half_image = image[0: int(image.shape[0]/2), :]
+        top_half_image = image[0: max(1, int(image.shape[0]/2)), :]
+        if top_half_image.size == 0:
+            return np.array([0, 0, 0])
 
         #get clustering model
         kmeans = self.get_clustering_model(top_half_image)
+        if kmeans is None:
+            return np.array([0, 0, 0])
 
         #get the cluster labels for each pixel
         labels = kmeans.labels_

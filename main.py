@@ -1,24 +1,33 @@
+import os
+import cv2
+import numpy as np
 from utils import read_video, save_video
 from trackers import Tracker
 from team_assigner import TeamAssigner
 from player_ball_assigner import PlayerBallAssigner
-import numpy as np
 from camera_movement_estimator import CameraMovementEstimator
 from view_transformer import ViewTransformer
 from speed_and_distance_estimator import SpeedAndDistanceEstimator
-import cv2
 
 def main():
-    # Read Video
-    video_frames = read_video(r"input_videos\08fd33_4.mp4")   
+    input_video_path = os.path.join("input_videos", "08fd33_4.mp4")
+    model_path = os.path.join("models", "best.pt")
+    track_stub_path = os.path.join("stubs", "track_stubs.pkl")
+    camera_stub_path = os.path.join("stubs", "camera_movement_stub.pkl")
+    output_video_path = os.path.join("output_videos", "output.avi")
 
+    # Read Video
+    video_frames = read_video(input_video_path)   
+    if not video_frames:
+        print(f"No frames read from {input_video_path}. Please check if the video file exists.")
+        return
 
     #initialize tracker 
-    tracker = Tracker("models/best.pt")
+    tracker = Tracker(model_path)
 
     tracks = tracker.get_object_tracks(video_frames,
                                        read_from_stub=True,
-                                       stub_path="stubs/track_stubs.pkl",)
+                                       stub_path=track_stub_path)
     
     # Get object positions
     tracker.add_position_to_tracks(tracks)
@@ -27,7 +36,7 @@ def main():
     camera_movement_estimator = CameraMovementEstimator(video_frames[0])
     camera_movement_per_frame = camera_movement_estimator.get_camera_movement(video_frames, 
                                                                               read_from_stub=True, 
-                                                                              stub_path="stubs/camera_movement_stub.pkl")
+                                                                              stub_path=camera_stub_path)
     camera_movement_estimator.add_adjust_positions_to_tracks(tracks, camera_movement_per_frame)
 
     # view transformer
@@ -82,7 +91,7 @@ def main():
     speed_and_distance_estimator.draw_speed_and_distance(output_video_frames, tracks)
 
     # Save Video
-    save_video(output_video_frames, "output_videos/output.avi")
+    save_video(output_video_frames, output_video_path)
     
 if __name__ == '__main__':
     main()
