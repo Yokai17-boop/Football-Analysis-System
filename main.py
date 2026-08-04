@@ -70,11 +70,11 @@ def main():
             tracks['players'][frame_num][player_id]['team'] = team
             tracks['players'][frame_num][player_id]['team_color'] = team_assigner.team_color[team]
 
-    # Assigne ball aquisition
+    # Assign ball acquisition
     player_assigner = PlayerBallAssigner()
     team_ball_control = []
     for frame_num, player_track in enumerate(tracks['players']):
-        ball_bbox = tracks['ball'][frame_num][1]['bbox']
+        ball_bbox = tracks['ball'][frame_num].get(1, {}).get('bbox', [0,0,0,0])
 
         assigned_player = player_assigner.assign_ball_to_player(player_track, ball_bbox)
 
@@ -82,7 +82,10 @@ def main():
             tracks['players'][frame_num][assigned_player]['has_ball'] = True
             team_ball_control.append(tracks['players'][frame_num][assigned_player]['team'])
         else:
-            team_ball_control.append(team_ball_control[-1])
+            if team_ball_control:
+                team_ball_control.append(team_ball_control[-1])
+            else:
+                team_ball_control.append(1)
     team_ball_control = np.array(team_ball_control)
 
 
