@@ -16,12 +16,18 @@ class Tracker:
 
 
     def interpolate_ball_positions(self, ball_positions):
-        ball_positions = [x.get(1, {}).get('bbox', []) for x in ball_positions]
-        df_ball_positions = pd.DataFrame(ball_positions, columns=['x1','y1','x2','y2'])
+        extracted_bboxes = [x.get(1, {}).get('bbox', []) for x in ball_positions]
+        formatted_bboxes = [
+            bbox if len(bbox) == 4 else [np.nan, np.nan, np.nan, np.nan]
+            for bbox in extracted_bboxes
+        ]
+
+        df_ball_positions = pd.DataFrame(formatted_bboxes, columns=['x1','y1','x2','y2'])
 
         #interpolate missing values 
         df_ball_positions = df_ball_positions.interpolate()
         df_ball_positions = df_ball_positions.bfill()
+        df_ball_positions = df_ball_positions.fillna(0)
 
         ball_positions = [{1: {"bbox":x}} for x in df_ball_positions.to_numpy().tolist()]
 
@@ -58,15 +64,21 @@ class Tracker:
             cls_name = detection.names
             cls_name_inv = {v:k for k,v in cls_name.items()}
 
+            player_cls_id = cls_name_inv.get('player', cls_name_inv.get('person'))
+            referee_cls_id = cls_name_inv.get('referee')
+            ball_cls_id = cls_name_inv.get('ball', cls_name_inv.get('sports ball'))
+
             # convert the detection to supervision detection format
             detection_supervision = sv.Detections.from_ultralytics(detection)
 
-            #Convert goolkeeper to player object
-            for object_ind, class_id in enumerate(detection_supervision.class_id):
-                if cls_name[class_id] == "goalkeeper":
-                    detection_supervision.class_id[object_ind] = cls_name_inv['player']
+            # Convert goalkeeper to player object if present
+            if 'goalkeeper' in cls_name_inv:
+                gk_cls_id = cls_name_inv['goalkeeper']
+                for object_ind, class_id in enumerate(detection_supervision.class_id):
+                    if class_id == gk_cls_id and player_cls_id is not None:
+                        detection_supervision.class_id[object_ind] = player_cls_id
 
-            #track objects 
+            # track objects 
             detection_with_tracks = self.tracker.update_with_detections(detection_supervision)
 
             tracks['players'].append({})
@@ -76,14 +88,14 @@ class Tracker:
             if detection_with_tracks.tracker_id is not None:
                 for bbox, cls_id, track_id in zip(detection_with_tracks.xyxy, detection_with_tracks.class_id, detection_with_tracks.tracker_id):
                     bbox_list = bbox.tolist()
-                    if cls_id == cls_name_inv.get('player'):
+                    if player_cls_id is not None and cls_id == player_cls_id:
                         tracks['players'][frame_num][track_id] = {"bbox": bbox_list}
 
-                    if cls_id == cls_name_inv.get('referee'):
+                    if referee_cls_id is not None and cls_id == referee_cls_id:
                         tracks['referees'][frame_num][track_id] = {"bbox": bbox_list}
 
             for bbox, cls_id in zip(detection_supervision.xyxy, detection_supervision.class_id):
-                if cls_id == cls_name_inv.get('ball'):
+                if ball_cls_id is not None and cls_id == ball_cls_id:
                     tracks['ball'][frame_num][1] = {"bbox": bbox.tolist()}
 
         if stub_path is not None:

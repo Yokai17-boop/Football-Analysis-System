@@ -10,8 +10,14 @@ from view_transformer import ViewTransformer
 from speed_and_distance_estimator import SpeedAndDistanceEstimator
 
 def main():
-    input_video_path = os.path.join("input_videos", "08fd33_4.mp4")
+    input_video_path = os.path.join("input_videos", "football_sample_video.mp4")
+    if not os.path.exists(input_video_path):
+        input_video_path = os.path.join("input_videos", "08fd33_4.mp4")
+
     model_path = os.path.join("models", "best.pt")
+    if not os.path.exists(model_path):
+        model_path = "yolov8x.pt"
+
     track_stub_path = os.path.join("stubs", "track_stubs.pkl")
     camera_stub_path = os.path.join("stubs", "camera_movement_stub.pkl")
     output_video_path = os.path.join("output_videos", "output.avi")
