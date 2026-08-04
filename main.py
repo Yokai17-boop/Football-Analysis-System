@@ -74,9 +74,15 @@ def main():
     player_assigner = PlayerBallAssigner()
     team_ball_control = []
     for frame_num, player_track in enumerate(tracks['players']):
-        ball_bbox = tracks['ball'][frame_num].get(1, {}).get('bbox', [0,0,0,0])
+        ball_data = tracks['ball'][frame_num].get(1, {})
+        ball_bbox = ball_data.get('bbox', [0,0,0,0])
+        ball_detected = ball_data.get('detected', False)
 
-        assigned_player = player_assigner.assign_ball_to_player(player_track, ball_bbox)
+        # Only assign ball possession when the ball is actually visible in the frame
+        if ball_detected:
+            assigned_player = player_assigner.assign_ball_to_player(player_track, ball_bbox)
+        else:
+            assigned_player = -1
 
         if assigned_player != -1:
             tracks['players'][frame_num][assigned_player]['has_ball'] = True
