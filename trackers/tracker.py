@@ -17,6 +17,9 @@ class Tracker:
 
     def interpolate_ball_positions(self, ball_positions):
         extracted_bboxes = [x.get(1, {}).get('bbox', []) for x in ball_positions]
+        # Track which frames had a real ball detection
+        was_detected = [len(bbox) == 4 for bbox in extracted_bboxes]
+
         formatted_bboxes = [
             bbox if len(bbox) == 4 else [np.nan, np.nan, np.nan, np.nan]
             for bbox in extracted_bboxes
@@ -29,7 +32,10 @@ class Tracker:
         df_ball_positions = df_ball_positions.bfill()
         df_ball_positions = df_ball_positions.fillna(0)
 
-        ball_positions = [{1: {"bbox":x}} for x in df_ball_positions.to_numpy().tolist()]
+        ball_positions = [
+            {1: {"bbox": x, "detected": detected}}
+            for x, detected in zip(df_ball_positions.to_numpy().tolist(), was_detected)
+        ]
 
         return ball_positions
 
@@ -216,13 +222,14 @@ class Tracker:
                 if player.get('has_ball', False):
                     frame = self.draw_triangle(frame, player['bbox'], (0,0,255))
 
-            # Draw Raferee 
+            # Draw Referees 
             for track_id, referee in referee_dict.items():
                 frame = self.draw_ellipse(frame, referee['bbox'], (0,255,255))
             
-            # Draw balls 
+            # Draw balls (only when actually detected in the frame)
             for track_id, ball in ball_dict.items():
-                frame = self.draw_triangle(frame, ball['bbox'], (0,255,0))
+                if ball.get('detected', True):
+                    frame = self.draw_triangle(frame, ball['bbox'], (0,255,0))
 
             # Draw team ball control
             frame = self.draw_team_ball_control(frame, frame_num, team_ball_control)
