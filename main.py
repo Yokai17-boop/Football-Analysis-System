@@ -10,6 +10,7 @@ from camera_movement_estimator import CameraMovementEstimator
 from view_transformer import ViewTransformer
 from speed_and_distance_estimator import SpeedAndDistanceEstimator
 
+
 def main():
     # Get video path from command line argument
     if len(sys.argv) < 2:
@@ -35,17 +36,21 @@ def main():
     output_video_path = os.path.join("output_videos", "output.avi")
 
     # Read Video
+    print("Reading video...")
     video_frames = read_video(video_path)
     if not video_frames:
         print(f"No frames read from {video_path}. Please check if the video file exists.")
         return
 
+    print(f"Video loaded: {len(video_frames)} frames")
     #initialize tracker
     tracker = Tracker(model_path)
 
+    print("Getting object tracks (this may take a while)...")
     tracks = tracker.get_object_tracks(video_frames,
                                        read_from_stub=True,
                                        stub_path=track_stub_path)
+    print(f"Tracks loaded. Players frames: {len(tracks.get('players', []))}")
 
     # Ensure tracks have the same length as video_frames
     def truncate_or_pad(lst, target_length, pad_value):
@@ -58,37 +63,56 @@ def main():
         else:
             return lst
 
+    print("Truncating/padding tracks...")
     # Truncate or pad player tracks, referee tracks, and ball tracks
     tracks['players'] = truncate_or_pad(tracks['players'], len(video_frames), {})
     tracks['referees'] = truncate_or_pad(tracks['referees'], len(video_frames), {})
     tracks['ball'] = truncate_or_pad(tracks['ball'], len(video_frames), {})
+    print("Tracks truncated/padded.")
 
     # Get object positions
+    print("Adding positions to tracks...")
     tracker.add_position_to_tracks(tracks)
+    print("Positions added.")
 
     # Camera movement estimator
+    print("Initializing camera movement estimator...")
     camera_movement_estimator = CameraMovementEstimator(video_frames[0])
+    print("Getting camera movement per frame...")
     camera_movement_per_frame = camera_movement_estimator.get_camera_movement(video_frames,
                                                                               read_from_stub=True,
                                                                               stub_path=camera_stub_path)
+    print("Camera movement computed.")
+    print("Adding adjusted positions to tracks...")
     camera_movement_estimator.add_adjust_positions_to_tracks(tracks, camera_movement_per_frame)
+    print("Adjusted positions added.")
 
     # view transformer
+    print("Initializing view transformer...")
     view_transformer = ViewTransformer()
+    print("Adding transformed positions to tracks...")
     view_transformer.add_transformed_position_to_tracks(tracks)
+    print("Transformed positions added.")
 
     #interpolate ball positions
+    print("Interpolating ball positions...")
     tracks['ball'] = tracker.interpolate_ball_positions(tracks["ball"])
+    print("Ball positions interpolated.")
 
     # Speed and Distance Estimator
+    print("Initializing speed and distance estimator...")
     speed_and_distance_estimator = SpeedAndDistanceEstimator()
+    print("Adding speed and distance to tracks...")
     speed_and_distance_estimator.add_speed_and_distance_to_tracks(tracks)
+    print("Speed and distance added.")
 
 
     # Assign player teams
+    print("Assigning player teams...")
     team_assigner = TeamAssigner()
     team_assigner.assign_team_color(video_frames[0],
                                     tracks['players'][0])
+    print("Team colors assigned.")
 
     for frame_num in range(len(video_frames)):
         player_tracks = tracks['players'][frame_num]
@@ -98,8 +122,10 @@ def main():
                                                  player_id)
             tracks['players'][frame_num][player_id]['team'] = team
             tracks['players'][frame_num][player_id]['team_color'] = team_assigner.team_color[team]
+    print("Player team assignments complete.")
 
     # Assign ball acquisition
+    print("Assigning ball possession...")
     player_assigner = PlayerBallAssigner()
     team_ball_control = []
     for frame_num in range(len(video_frames)):
@@ -123,20 +149,55 @@ def main():
             else:
                 team_ball_control.append(1)
     team_ball_control = np.array(team_ball_control)
+    print("Ball possession assigned.")
 
+    print("Starting video processing...")
+    # --- NEW INCREMENTAL PROCESSING TO SAVE MEMORY ---
+    # Open the input video
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("Error: Could not open video.")
+        return
 
-    # Draw Output
-    ## Draw object tracks
-    output_video_frames = tracker.draw_annotations(video_frames, tracks, team_ball_control)
+    # Get video properties for output
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print(f"Video properties: {frame_width}x{frame_height} @ {fps} FPS")
 
-    ## Draw camera movement
-    output_video_frames = camera_movement_estimator.draw_camera_movement(output_video_frames, camera_movement_per_frame)
+    # Define the codec and create VideoWriter object
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (frame_width, frame_height))
+    if not out.isOpened():
+        print("Error: Could not open video writer.")
+        cap.release()
+        return
 
-    ## Draw speed and distance
-    speed_and_distance_estimator.draw_speed_and_distance(output_video_frames, tracks)
+    frame_num = 0
+    print("Processing frames...")
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print(f"Finished reading frames at frame {frame_num}")
+            break
 
-    # Save Video
-    save_video(output_video_frames, output_video_path)
-    
+        # Process the frame in-place
+        frame = tracker.draw_annotations(frame, frame_num, tracks, team_ball_control)
+        frame = camera_movement_estimator.draw_camera_movement(frame, frame_num, camera_movement_per_frame)
+        frame = speed_and_distance_estimator.draw_speed_and_distance(frame, frame_num, tracks)
+
+        # Write the frame
+        out.write(frame)
+
+        frame_num += 1
+        if frame_num % 100 == 0:
+            print(f"Processed {frame_num} frames...")
+
+    # Release everything
+    print("Releasing resources...")
+    cap.release()
+    out.release()
+    print("Video processing complete!")
+
 if __name__ == '__main__':
     main()
