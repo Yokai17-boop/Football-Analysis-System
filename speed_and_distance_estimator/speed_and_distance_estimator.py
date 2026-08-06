@@ -6,7 +6,7 @@ class SpeedAndDistanceEstimator():
         self.frame_window = 5
         self.frame_rate = 24
 
-    def add_speed_and_sistance_to_tracks(self, tracks):
+    def add_speed_and_distance_to_tracks(self, tracks):
 
         total_distance = {}
 

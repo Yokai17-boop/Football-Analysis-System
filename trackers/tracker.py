@@ -1,18 +1,22 @@
+import warnings
+warnings.filterwarnings("ignore", message="The `ByteTrack` was deprecated since v0.28.0", category=FutureWarning)
+
 from ultralytics import YOLO
-import supervision as sv
+import supervision
 import pickle
-import os 
+import os
 import cv2
 import numpy as np
 import pandas as pd
 
 from utils import get_bbox_width, get_center_of_bbox,get_foot_position
+from supervision.tracker import ByteTrack
 
 class Tracker:
     
     def __init__(self, model_path):
         self.model = YOLO(model_path)
-        self.tracker = sv.ByteTrack()
+        self.tracker = ByteTrack()
 
 
     def interpolate_ball_positions(self, ball_positions):
@@ -75,7 +79,7 @@ class Tracker:
             ball_cls_id = cls_name_inv.get('ball', cls_name_inv.get('sports ball'))
 
             # convert the detection to supervision detection format
-            detection_supervision = sv.Detections.from_ultralytics(detection)
+            detection_supervision = supervision.Detections.from_ultralytics(detection)
 
             # Convert goalkeeper to player object if present
             if 'goalkeeper' in cls_name_inv:

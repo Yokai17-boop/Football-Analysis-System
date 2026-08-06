@@ -9,3 +9,4 @@ output_videos
 
 __pycache__
 stubs
+cuda.log

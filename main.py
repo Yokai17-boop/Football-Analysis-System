@@ -82,7 +82,7 @@ def main():
 
     # Speed and Distance Estimator
     speed_and_distance_estimator = SpeedAndDistanceEstimator()
-    speed_and_distance_estimator.add_speed_and_sistance_to_tracks(tracks)
+    speed_and_distance_estimator.add_speed_and_distance_to_tracks(tracks)
 
 
     # Assign player teams
