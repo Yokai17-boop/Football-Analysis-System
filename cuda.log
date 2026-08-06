@@ -1,0 +1,2 @@
+C:\Users\udayb\Football-Analysis-System-1\trackers\tracker.py:15: FutureWarning: The `ByteTrack` was deprecated since v0.28.0. It will be removed in v0.31.0.
+  self.tracker = sv.ByteTrack()

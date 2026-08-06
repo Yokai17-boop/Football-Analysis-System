@@ -210,11 +210,21 @@ class Tracker:
         for frame_num, frame in enumerate(video_frames):
             frame_copy = frame.copy()
 
-            player_dict = tracks['players'][frame_num]
-            referee_dict = tracks['referees'][frame_num]
-            ball_dict = tracks['ball'][frame_num]
+            # Safely access tracking data with bounds checking
+            player_dict = {}
+            referee_dict = {}
+            ball_dict = {}
 
-            # Draw Players 
+            if 'players' in tracks and len(tracks['players']) > frame_num:
+                player_dict = tracks['players'][frame_num]
+
+            if 'referees' in tracks and len(tracks['referees']) > frame_num:
+                referee_dict = tracks['referees'][frame_num]
+
+            if 'ball' in tracks and len(tracks['ball']) > frame_num:
+                ball_dict = tracks['ball'][frame_num]
+
+            # Draw Players
             for track_id, player in player_dict.items():
                 color = player.get("team_color", (0,0,255))
                 frame = self.draw_ellipse(frame, player['bbox'], color, track_id)
@@ -222,10 +232,10 @@ class Tracker:
                 if player.get('has_ball', False):
                     frame = self.draw_triangle(frame, player['bbox'], (0,0,255))
 
-            # Draw Referees 
+            # Draw Referees
             for track_id, referee in referee_dict.items():
                 frame = self.draw_ellipse(frame, referee['bbox'], (0,255,255))
-            
+
             # Draw balls (only when actually detected in the frame)
             for track_id, ball in ball_dict.items():
                 if ball.get('detected', True):
@@ -235,13 +245,16 @@ class Tracker:
             frame = self.draw_team_ball_control(frame, frame_num, team_ball_control)
 
             output_video_frames.append(frame)
-        
+
         return output_video_frames
 
 
     def add_position_to_tracks(self, tracks):
         for object, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
+                # Skip if track is not a dictionary (e.g., if it's a list or None)
+                if not isinstance(track, dict):
+                    continue
                 for track_id, track_info in track.items():
                     bbox = track_info['bbox']
                     if object == 'ball':

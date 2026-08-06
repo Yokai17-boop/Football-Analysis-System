@@ -41,6 +41,9 @@ class ViewTransformer():
     def add_transformed_position_to_tracks(self, tracks):
         for object, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
+                # Skip if track is not a dictionary (e.g., if it's a list or None)
+                if not isinstance(track, dict):
+                    continue
                 for track_id, track_info in track.items():
                     position = track_info['position_adjusted']
                     position = np.array(position)

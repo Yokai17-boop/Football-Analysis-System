@@ -34,6 +34,9 @@ class CameraMovementEstimator():
     def add_adjust_positions_to_tracks(self, tracks, camera_movement_per_frame):
         for object, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
+                # Skip if track is not a dictionary (e.g., if it's a list or None)
+                if not isinstance(track, dict):
+                    continue
                 for track_id, track_info in track.items():
                     position = track_info['position']
                     camera_movement = camera_movement_per_frame[frame_num]
@@ -102,7 +105,11 @@ class CameraMovementEstimator():
             alpha =0.6
             cv2.addWeighted(overlay,alpha,frame,1-alpha,0,frame)
 
-            x_movement, y_movement = camera_movement_per_frame[frame_num]
+            if frame_num < len(camera_movement_per_frame):
+                x_movement, y_movement = camera_movement_per_frame[frame_num]
+            else:
+                # Use the last known value if we run out of motion data
+                x_movement, y_movement = camera_movement_per_frame[-1] if camera_movement_per_frame else [0, 0]
             frame = cv2.putText(frame,f"Camera Movement X: {x_movement:.2f}",(10,30), cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,0),3)
             frame = cv2.putText(frame,f"Camera Movement Y: {y_movement:.2f}",(10,60), cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,0),3)
 

@@ -1,0 +1,14 @@
+camera_movement_estimator
+development_and_analysis
+input_videos
+models
+output_videos
+player_ball_assigner
+speed_and_distance_estimator
+stubs
+team_assigner
+trackers
+training
+utils
+venv
+view_transformer
